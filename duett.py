@@ -43,6 +43,10 @@ def fine_tune_model(ckpt_path, **kwargs):
     return Model.load_from_checkpoint(ckpt_path, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
             lr=1.e-4, weight_decay=1.e-5, fusion_method='rep_token', **kwargs)
 
+def load_model(ckpt_path, **kwargs):
+    return Model.load_from_checkpoint(ckpt_path, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
+            lr=1.e-4, weight_decay=1.e-5, fusion_method='rep_token', **kwargs)
+
 class Model(pl.LightningModule):
     def __init__(self, d_static_num, d_time_series_num, d_target, lr=3.e-4, weight_decay=1.e-1, glu=False,
             scalenorm=True, n_hidden_mlp_embedding=1, d_hidden_mlp_embedding=64, d_embedding=24, d_feedforward=512,
@@ -132,6 +136,14 @@ class Model(pl.LightningModule):
         self.val_ap = torchmetrics.AveragePrecision(num_classes=num_classes)
         self.test_auroc = torchmetrics.AUROC(num_classes=num_classes)
         self.test_ap = torchmetrics.AveragePrecision(num_classes=num_classes)
+
+        self.train_loss = []
+        self.val_loss = []
+
+        self.epoch_train_auroc = []
+        self.epoch_val_auroc = []
+        self.epoch_train_ap = []
+        self.epoch_val_ap = []
 
     def set_pos_frac(self, pos_frac):
         if type(pos_frac) == list:
@@ -362,7 +374,7 @@ class Model(pl.LightningModule):
 
         # Workaround to fix the loss=nan issue on the train progress bar
         # self.trainer.train_loop.running_loss.append(loss)
-        self.log('train_loss', loss, sync_dist=True)
+        # self.log('train_loss', loss, on_epoch=True, sync_dist=True)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -411,14 +423,40 @@ class Model(pl.LightningModule):
             self.log('val_auroc', self.val_auroc, on_epoch=True, sync_dist=True, rank_zero_only=True)
         self.log('val_loss', loss, on_epoch=True, sync_dist=True, prog_bar=True, rank_zero_only=True)
 
+        return loss
+
     def training_epoch_end(self, training_step_outputs):
+        if len(training_step_outputs) != 0:
+            avg_loss = torch.stack([x['loss'] for x in training_step_outputs]).mean()
+            self.train_loss.append(avg_loss)
+
+            self.log('train_loss', avg_loss, on_epoch=True, sync_dist=True, rank_zero_only=True)
+
+
         if not self.pretrain:
-            self.log('train_auroc', self.train_auroc, sync_dist=True, rank_zero_only=True)
-            self.log('train_ap', self.train_ap, sync_dist=True, rank_zero_only=True)
+            self.log('train_auroc', self.train_auroc, on_epoch=True, sync_dist=True, rank_zero_only=True)
+            self.log('train_ap', self.train_ap, on_epoch=True, sync_dist=True, rank_zero_only=True)
+
+            self.epoch_train_auroc.append(self.train_auroc)
+            self.epoch_train_ap.append(self.train_ap)
+
+            
 
     def validation_epoch_end(self, validation_step_outputs):
+        if len(validation_step_outputs) != 0:
+            avg_loss = torch.stack(validation_step_outputs).mean()
+            self.val_loss.append(avg_loss)
+
         if not self.pretrain:
-            print("val_auroc", self.val_auroc.compute(), "val_ap", self.val_ap.compute())
+
+
+            next_auroc = self.val_auroc.compute()
+            next_ap = self.val_ap.compute()
+
+            print("val_auroc", next_auroc, "val_ap", next_ap)
+
+            self.epoch_val_auroc.append(next_auroc.item())
+            self.epoch_val_ap.append(next_ap.item())
 
     def test_step(self, batch, batch_idx):
         x, y = batch

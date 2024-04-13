@@ -70,32 +70,3 @@ def average_models(models):
         averaged[k] = sum(sd[k] for sd in sds) / n
     models[0].load_state_dict(averaged)
     return models[0]
-
-# seed = 2020
-# pl.seed_everything(seed)
-# dm = physionet.PhysioNetDataModule(batch_size=512, num_workers=16, use_temp_cache=True)
-# dm.setup()
-
-# pretrain_model = duett.pretrain_model(d_static_num=dm.d_static_num(),
-#         d_time_series_num=dm.d_time_series_num(), d_target=dm.d_target(), pos_frac=dm.pos_frac(),
-#         seed=seed)
-# checkpoint = pl.callbacks.ModelCheckpoint(save_last=True, monitor='val_loss', mode='min', save_top_k=1, dirpath='checkpoints')
-# warmup = WarmUpCallback(steps=2000)
-# trainer = pl.Trainer(gpus=1, logger=False, num_sanity_val_steps=2, max_epochs=300,
-#         gradient_clip_val=1.0, callbacks=[warmup, checkpoint])
-# trainer.fit(pretrain_model, dm)
-
-# pretrained_path = checkpoint.best_model_path
-# for seed in range(2020, 2023):
-#     pl.seed_everything(seed)
-#     fine_tune_model = duett.fine_tune_model(pretrained_path, d_static_num=dm.d_static_num(),
-#             d_time_series_num=dm.d_time_series_num(), d_target=dm.d_target(), pos_frac=dm.pos_frac(), seed=seed)
-#     checkpoint = pl.callbacks.ModelCheckpoint(save_top_k=5, save_last=False, mode='max', monitor='val_ap', dirpath='checkpoints')
-#     warmup = WarmUpCallback(steps=1000)
-#     trainer = pl.Trainer(gpus=1, logger=False, max_epochs=50, gradient_clip_val=1.0,
-#             callbacks=[warmup, checkpoint])
-#     trainer.fit(fine_tune_model, dm)
-#     final_model = average_models([duett.fine_tune_model(path, d_static_num=dm.d_static_num(),
-#             d_time_series_num=dm.d_time_series_num(), d_target=dm.d_target(), pos_frac=dm.pos_frac())
-#             for path in checkpoint.best_k_models.keys()])
-#     trainer.test(final_model, dataloaders=dm)

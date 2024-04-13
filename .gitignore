@@ -1,2 +1,3 @@
 __pycache__
-.torchtime
+.torchtime/physionet_2012/outcome
+logs
