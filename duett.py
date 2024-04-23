@@ -43,8 +43,8 @@ def fine_tune_model(ckpt_path, **kwargs):
     return Model.load_from_checkpoint(ckpt_path, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
             lr=1.e-4, weight_decay=1.e-5, fusion_method='rep_token', **kwargs)
 
-def load_model(ckpt_path, **kwargs):
-    return Model.load_from_checkpoint(ckpt_path, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
+def skip_pretrain_model(d_static_num, d_time_series_num, d_target, **kwargs):
+    return Model(d_static_num, d_time_series_num, d_target, pretrain=False, aug_noise=0., aug_mask=0.5, transformer_dropout=0.5,
             lr=1.e-4, weight_decay=1.e-5, fusion_method='rep_token', **kwargs)
 
 class Model(pl.LightningModule):
@@ -275,6 +275,8 @@ class Model(pl.LightningModule):
         time_embeddings = torch.cat((time_embeddings,
             self.full_rep_embedding.weight.T.unsqueeze(0).expand(xs_feats.shape[0],-1,-1)),
             dim=1)
+        
+        # Original
         for layer_i, (event_transformer, time_transformer) in enumerate(zip(self.event_transformers, self.time_transformers)):
             et_out_shape = (psi.shape[0], psi.shape[2], psi.shape[1], psi.shape[3])
             embeddings = psi.transpose(1,2).flatten(2) + self.full_event_embedding.weight.unsqueeze(0)
@@ -282,6 +284,29 @@ class Model(pl.LightningModule):
             tt_out_shape = event_outs.shape
             embeddings = event_outs.flatten(2) + time_embeddings
             psi = time_transformer(embeddings).view(tt_out_shape)
+
+        # # Inject event and time embeddings only at the first layer
+        # et_out_shape = (psi.shape[0], psi.shape[2], psi.shape[1], psi.shape[3])
+        # embeddings = psi.transpose(1,2).flatten(2) + self.full_event_embedding.weight.unsqueeze(0)
+        # event_outs = self.event_transformers[0](embeddings).view(et_out_shape).transpose(1,2)
+        # tt_out_shape = event_outs.shape
+        # embeddings = event_outs.flatten(2) + time_embeddings
+        # psi = self.time_transformers[0](embeddings).view(tt_out_shape)
+
+        # ## Using event
+        # for layer_i, (event_transformer, time_transformer) in enumerate(zip(self.event_transformers, self.time_transformers)):
+        #     et_out_shape = (psi.shape[0], psi.shape[2], psi.shape[1], psi.shape[3])
+        #     embeddings = psi.transpose(1,2).flatten(2) + self.full_event_embedding.weight.unsqueeze(0)
+        #     event_outs = event_transformer(embeddings).transpose(1,2)
+        #     tt_out_shape = event_outs.shape
+        #     psi = event_outs
+
+        # ## Using time
+        # for layer_i, (event_transformer, time_transformer) in enumerate(zip(self.event_transformers, self.time_transformers)):
+        #     et_out_shape = (psi.shape[0], psi.shape[2], psi.shape[1], psi.shape[3])
+        #     embeddings = psi.flatten(2) + time_embeddings
+        #     psi = time_transformer(embeddings).view(et_out_shape).transpose(1,2)
+
         transformed = psi.flatten(2)
 
         if self.fusion_method == 'rep_token':

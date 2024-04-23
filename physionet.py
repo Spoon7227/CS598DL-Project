@@ -97,6 +97,22 @@ class PhysioNetDataset(torch.utils.data.Dataset):
                 if not torch.isnan(x_i).item():
                     x_ts[bin, i_ts-1] = (x_i - self.means[i_ts])/(self.stds[i_ts] + 1e-7)
                     x_ts[bin, i_ts-1+self.d_time_series_num()] += 1
+
+        # # Ablation: Use mean value
+        # for i_t, t in enumerate(time):
+        #     bin = self.n_timesteps - 1 if t == time[-1] else int(t / time[-1] * self.n_timesteps)
+        #     for i_ts in range(1,37):
+        #         x_i = ins[i_t,i_ts]
+        #         if not torch.isnan(x_i).item():
+        #             x_ts[bin, i_ts-1] += (x_i - self.means[i_ts])/(self.stds[i_ts] + 1e-7)
+        #             x_ts[bin, i_ts-1+self.d_time_series_num()] += 1
+
+        # for bin_idx in range(self.n_timesteps):
+        #     for i_ts in range(self.d_time_series_num()):
+        #         count = x_ts[bin_idx, i_ts + self.d_time_series_num()]
+        #         if count > 0:
+        #             x_ts[bin_idx, i_ts] /= count
+
         bin_ends = torch.arange(1, self.n_timesteps+1) / self.n_timesteps * time[-1]
 
         for i_tab in range(37,45):
