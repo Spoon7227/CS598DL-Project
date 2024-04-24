@@ -10,7 +10,7 @@ The jupyter notebook DL4H_Team_77.ipynb contains all nessisary cells to run this
 
 PhysioNet-2012 Mortality Task Performance
 
-Below is the comparison of this project's replication of the original paper's results with other methods. Other method's performance data is sourced from the original paper.
+Below are our replication of performances from the original paper.
 All methods use seed 2020 with ours using seed 2020-2022.
 
 | Model           | ROC-AUC    | PR-AUC    |
@@ -22,6 +22,8 @@ All methods use seed 2020 with ours using seed 2020-2022.
 | STraTS           | 0.852 ± 0.008 | 0.527 ± 0.006 |
 | **DuETT (Ours)**    | **0.872 ± 0.001** | **0.554 ± 0.003** |
 
+
+Below are the ablation studies conducted using the PhysioNet-2012 Mortality Task
 
 | Ablation Study           | PR-AUC    | $$\Delta$$    |
 |-----------------|------------|-----------|
